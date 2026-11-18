@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>세이프워크 시뮬레이터</title>
+<style>
+:root{--bg:#f4f2ff;--card:#fff;--ink:#262a44;--mut:#646a8c;--line:#d9d5f3;--grid:#e6e2fa;--lav:#e4dcff;--mint:#d2f5e8;--sky:#d4ebff;--peach:#ffe3d3;--rose:#ffd3dd;--acc:#6a4cf0;--onacc:#fff;--c1:#3b9bff;--c2:#1fb383;--c3:#8a5cff;--bad:#e0527a;--ok:#1fb383;--warn:#f08a4b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15152b;--card:#1e1e3a;--ink:#ecebff;--mut:#a5a8cf;--line:#38386a;--grid:#2a2a52;--lav:#2d2850;--mint:#173c36;--sky:#18334d;--peach:#4a3128;--rose:#4a2535;--acc:#a894ff;--onacc:#15152b;--c1:#6bb5ff;--c2:#4fdcae;--c3:#b59cff}}
+:root[data-theme="dark"]{--bg:#15152b;--card:#1e1e3a;--ink:#ecebff;--mut:#a5a8cf;--line:#38386a;--grid:#2a2a52;--lav:#2d2850;--mint:#173c36;--sky:#18334d;--peach:#4a3128;--rose:#4a2535;--acc:#a894ff;--onacc:#15152b;--c1:#6bb5ff;--c2:#4fdcae;--c3:#b59cff}
+:root[data-hc="1"]{--mut:var(--ink);--line:var(--ink)}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px);font-size:16px}
+html[data-big="1"]{font-size:19px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+h1{font-size:1.6rem;margin:0;letter-spacing:-.02em}
+h1 small{display:block;font-size:.85rem;font-weight:500;color:var(--mut);margin-top:2px}
+h2{font-size:1.05rem;margin:0 0 10px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.notice{background:var(--peach);border:1px solid var(--warn);border-radius:10px;padding:10px 14px;font-size:.9rem;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px}
+@media(max-width:880px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.card.tech{border-left:5px solid var(--acc)}
+label{display:block;font-size:.85rem;color:var(--mut);margin:8px 0 4px}
+input,select,button{font:inherit;color:var(--ink)}
+input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--lav);cursor:pointer;min-height:44px}
+button.p{background:var(--acc);color:var(--onacc);border-color:var(--acc);font-weight:700}
+button[aria-pressed="true"]{background:var(--mint);border-color:var(--c2)}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mapbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:16px}
+canvas{width:100%;aspect-ratio:1/1;display:block;border-radius:10px;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px;background-color:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:18px;height:5px;border-radius:3px;vertical-align:middle;margin-right:5px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:600}
+tr.sel td,tr.sel th{background:var(--lav)}
+.why{background:var(--sky);border-radius:10px;padding:10px 12px;font-size:.92rem;margin-top:10px}
+ol.steps{margin:10px 0 0;padding-left:22px;font-size:.9rem;max-height:200px;overflow:auto}
+#log{max-height:210px;overflow:auto;font-size:.88rem;margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.msg{padding:7px 10px;border-radius:8px;background:var(--mint)}
+.msg.warn{background:var(--peach)}.msg.bt{background:var(--lav);color:var(--mut);font-size:.8rem}
+.w{display:grid;grid-template-columns:130px 1fr 36px;gap:8px;align-items:center;font-size:.82rem;margin:4px 0}
+.bar{height:8px;background:var(--grid);border-radius:4px;overflow:hidden}.bar b{display:block;height:100%;background:var(--c3)}
+.fb{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0;font-size:.88rem}
+.fb button{min-height:36px;padding:4px 10px}
+.hint{font-size:.82rem;color:var(--mut)}
+@media(prefers-reduced-motion:no-preference){.bar b{transition:width .4s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+ <h1>세이프워크 시뮬레이터<small>가상 도시에서 안전한 보행 경로를 찾고 안내합니다</small></h1>
+ <div class="tools" role="group" aria-label="화면 설정">
+  <button id="tHc" aria-pressed="false">고대비</button>
+  <button id="tBig" aria-pressed="false">큰 글씨</button>
+  <button id="tVoice" aria-pressed="true">음성 안내</button>
+ </div>
+</header>
+<div class="notice" role="note"><b>시뮬레이션 프로토타입입니다.</b> 가상 도시와 가정한 위험 규칙으로 동작하므로 실제 길 안내에 사용할 수 없습니다. 이 앱은 흰지팡이나 안내견을 대체하지 않습니다.</div>
+
+<div class="grid">
+<div>
+ <div class="mapbox">
+  <canvas id="cv" width="640" height="640" role="img" aria-label="가상 도시 지도. 같은 정보는 오른쪽의 텍스트 경로 안내에서 읽을 수 있습니다."></canvas>
+  <div class="legend">
+   <span><i style="background:var(--c1)"></i>최단</span><span><i style="background:var(--c2)"></i>안전</span><span><i style="background:var(--c3)"></i>내 맞춤</span>
+   <span><i style="background:var(--warn)"></i>계단</span><span><i style="background:var(--ok)"></i>음향신호 횡단보도</span><span><i style="background:var(--bad)"></i>음향신호 없음</span><span>✕ 공사</span>
+  </div>
+ </div>
+ <div class="card tech">
+  <h2>경로 평가 (시험용 도시 30개)</h2>
+  <p class="hint">시험용 시드로 도시를 새로 만들어 세 경로를 자동 비교합니다.</p>
+  <button id="bEval">평가 실행</button>
+  <div id="evalOut" aria-live="polite"></div>
+ </div>
+</div>
+
+<div>
+ <section class="card" aria-labelledby="h-in">
+  <h2 id="h-in">1. 어디로 갈까요</h2>
+  <label for="nl">문장으로 말하기</label>
+  <input id="nl" placeholder="예: 시청역에서 약국, 계단은 피해서" autocomplete="off">
+  <div class="btns"><button id="bParse">문장 해석</button></div>
+  <div class="row">
+   <div><label for="selA">출발지</label><select id="selA"></select></div>
+   <div><label for="selB">목적지</label><select id="selB"></select></div>
+  </div>
+  <div class="row">
+   <div><label for="seed">도시 시드</label><input id="seed" type="number" value="7"></div>
+   <div style="align-self:end"><button id="bCity" style="width:100%">새 도시 만들기</button></div>
+  </div>
+  <div class="btns"><button id="bGo" class="p">경로 찾기</button></div>
+  <p id="parseOut" class="hint" aria-live="polite"></p>
+ </section>
+
+ <section class="card" aria-labelledby="h-cmp">
+  <h2 id="h-cmp">2. 경로 비교</h2>
+  <table><thead><tr><th scope="col">경로</th><th scope="col">시간</th><th scope="col">계단</th><th scope="col">음향 없는 횡단</th><th scope="col">위험</th></tr></thead><tbody id="cmp"><tr><td colspan="5" class="hint">경로 찾기를 누르세요.</td></tr></tbody></table>
+  <div class="btns" id="pick" role="group" aria-label="안내할 경로 선택"></div>
+  <div class="why" id="why" aria-live="polite">추천 이유가 여기에 표시됩니다.</div>
+  <ol class="steps" id="steps" aria-label="선택한 경로의 텍스트 안내"></ol>
+ </section>
+
+ <section class="card" aria-labelledby="h-sim">
+  <h2 id="h-sim">3. 안내 시뮬레이션</h2>
+  <div class="btns">
+   <button id="bStart" class="p">안내 시작 (S)</button>
+   <button id="bPause">일시정지 (P)</button>
+   <button id="bRep">다시 듣기 (R)</button>
+  </div>
+  <div id="log" aria-live="polite" aria-label="안내 기록"></div>
+ </section>
+
+ <section class="card" aria-labelledby="h-pf">
+  <h2 id="h-pf">4. 내 맞춤 가중치</h2>
+  <p class="hint">도착 후 남기는 피드백으로 조정됩니다. 높을수록 해당 요소를 더 피합니다.</p>
+  <div id="wts"></div>
+  <div id="fb"></div>
+  <div class="btns"><button id="bReset">가중치 초기화</button></div>
+ </section>
+</div>
+</div>
+
+<script>window.addEventListener('error',e=>{const d=document.createElement('div');d.className='notice';d.textContent='오류: '+e.message;document.body.prepend(d)})</script>
+<script>
+const N=8,$=s=>document.querySelector(s);
+const NAMES=['시청역','약국','병원','편의점','도서관','공원','버스정류장','복지관'];
+const KEYS=['계단','음향 없는 횡단보도','대로 횡단','혼잡','공사','경사','점자블록 끊김'];
+const W0=[1.2,1.5,.8,.6,3,.5,.4];
+const LBL=['최단','안전','내 맞춤'],COL=['--c1','--c2','--c3'];
+let city,seed=7,prof=W0.slice(),opts={stairs:1},R=[],sel=1,sim=null,voice=true,evCity=null;
+try{const s=JSON.parse(localStorage.getItem('sw_prof')||'null');if(s&&s.length==7)prof=s}catch(e){}
+const save=()=>{try{localStorage.setItem('sw_prof',JSON.stringify(prof))}catch(e){}};
+
+function prng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gen(s){const r=prng(s),E=[],A=Array.from({length:N*N},()=>[]);
+ for(let y=0;y<N;y++)for(let x=0;x<N;x++){const a=y*N+x;
+  for(const[dx,dy]of[[1,0],[0,1]]){const bx=x+dx,by=y+dy;if(bx>=N||by>=N)continue;const b=by*N+bx,cr=r()<.35,wide=r()<.3;
+   const e={a,b,len:70+(r()*30|0),st:r()<.12,cr,au:false,wide,crowd:r(),sl:r()*.8,tp:r()<.6,wait:10+(r()*30|0),con:false};
+   e.au=cr&&r()<.5;E.push(e);A[a].push(e);A[b].push(e)}}
+ const ids=[...Array(N*N).keys()];for(let i=ids.length-1;i>0;i--){const j=r()*(i+1)|0;[ids[i],ids[j]]=[ids[j],ids[i]]}
+ const L={};NAMES.forEach((n,i)=>L[n]=ids[i]);return{E,A,L}}
+
+const risk=e=>[e.st?1:0,e.cr&&!e.au?(e.wide?1:.7):0,e.cr&&e.wide?.6:0,e.crowd>.6?e.crowd:0,e.con?1:0,e.sl>.5?e.sl:0,e.tp?0:.5];
+const tm=e=>e.len/1.2+(e.cr?e.wait/2:0)+(e.st?15:0);
+function astar(s,t,w){const g={[s]:0},prev={},open=[[0,s]],done=new Set(),
+ h=n=>(Math.abs(n%N-t%N)+Math.abs((n/N|0)-(t/N|0)))*70/1.2;
+ while(open.length){open.sort((a,b)=>a[0]-b[0]);const[,u]=open.shift();if(u==t)break;if(done.has(u))continue;done.add(u);
+  for(const e of city.A[u]){const v=e.a==u?e.b:e.a,c=g[u]+tm(e)+risk(e).reduce((p,x,i)=>p+x*w[i]*60,0)+(e.con?400:0);
+   if(g[v]==null||c<g[v]){g[v]=c;prev[v]=[u,e];open.push([c+h(v),v])}}}
+ const p=[t],es=[];let c=t;while(c!=s){const[u,e]=prev[c];es.push(e);p.push(u);c=u}return{p:p.reverse(),es:es.reverse()}}
+const wsets=()=>[W0.map(()=>0),W0.map((x,i)=>x*(i==0?opts.stairs:1)),prof.map((x,i)=>x*(i==0?opts.stairs:1))];
+function stats(r){return{t:r.es.reduce((a,e)=>a+tm(e),0),st:r.es.filter(e=>e.st).length,cr:r.es.filter(e=>e.cr).length,ns:r.es.filter(e=>e.cr&&!e.au).length,rk:r.es.reduce((a,e)=>a+risk(e).reduce((x,y)=>x+y,0),0)}}
+const fmt=s=>Math.floor(s/60)+'분 '+String(Math.round(s%60)).padStart(2,'0')+'초';
+const pos=n=>[40+(n%N)*80,40+(n/N|0)*80];
+
+function dirText(p,i,pre){const[a,b]=[p[i],p[i+1]],d=[(b%N)-(a%N),(b/N|0)-(a/N|0)];
+ const q=i?p[i-1]:pre;if(q==null)return'출발합니다';const f=[(a%N)-(q%N),(a/N|0)-(q/N|0)],c=f[0]*d[1]-f[1]*d[0],dot=f[0]*d[0]+f[1]*d[1];
+ return dot<0?'뒤로 돌아':c>0?'우회전하여':c<0?'좌회전하여':'직진하여'}
+function instr(r,i){const e=r.es[i],pre=dirText(r.p,i,r.pre),b=[];
+ b.push(pre+' '+e.len+'미터 이동');
+ if(e.st)b.push('계단이 있으니 손잡이를 확인하세요');
+ if(e.cr)b.push(e.au?'음향신호 횡단보도, 신호 대기 약 '+e.wait+'초':'음향신호가 없으니 주변 소리를 확인하며 횡단하세요');
+ if(e.con)b.push('공사 구간입니다');
+ if(!e.tp)b.push('점자블록이 끊깁니다');return b.join('. ')+'.'}
+
+function say(t,c){const d=document.createElement('div');d.className='msg '+(c||'');d.textContent=t;$('#log').append(d);$('#log').scrollTop=1e9;
+ if(c!='bt'&&voice&&window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';speechSynthesis.speak(u)}}
+let AC;function ping(pan){try{const C=AC||(AC=new(window.AudioContext||window.webkitAudioContext)()),o=C.createOscillator(),g=C.createGain(),p=C.createStereoPanner();
+ o.frequency.value=660;g.gain.value=.08;p.pan.value=pan;o.connect(g);g.connect(p);p.connect(C.destination);o.start();o.stop(C.currentTime+.15)}catch(e){}}
+
+function draw(){const cv=$('#cv'),x=cv.getContext('2d'),S=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+ x.clearRect(0,0,640,640);
+ for(const e of city.E){const[a,b]=[pos(e.a),pos(e.b)];x.beginPath();x.moveTo(...a);x.lineTo(...b);x.setLineDash(e.st?[6,5]:[]);
+  x.lineWidth=e.cr?7:5;x.strokeStyle=e.st?S('--warn'):e.cr?(e.au?S('--ok'):S('--bad')):S('--line');x.globalAlpha=e.cr||e.st?.9:.8;x.stroke();x.setLineDash([]);x.globalAlpha=1;
+  if(e.con){const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];x.fillStyle=S('--bad');x.font='bold 18px sans-serif';x.textAlign='center';x.fillText('✕',m[0],m[1]+6)}}
+ const order=[0,1,2].filter(i=>i!=sel).concat(sel);
+ for(const i of order){const r=R[i];if(!r)continue;x.beginPath();r.p.forEach((n,k)=>{const q=pos(n);k?x.lineTo(...q):x.moveTo(...q)});
+  x.strokeStyle=S(COL[i]);x.lineWidth=i==sel?7:3;x.globalAlpha=i==sel?1:.55;x.lineJoin='round';x.stroke();x.globalAlpha=1}
+ x.font='12px sans-serif';x.textAlign='center';
+ for(const n of NAMES){const q=pos(city.L[n]),on=n==$('#selA').value||n==$('#selB').value;
+  x.beginPath();x.arc(q[0],q[1],on?11:8,0,7);x.fillStyle=on?S('--acc'):S('--card');x.fill();x.lineWidth=2;x.strokeStyle=S('--acc');x.stroke();
+  x.fillStyle=S('--ink');x.fillText(n,q[0],q[1]-15)}
+ if(sim&&sim.r){const q=pos(sim.r.p[Math.min(sim.i,sim.r.p.length-1)]);x.beginPath();x.arc(q[0],q[1],9,0,7);x.fillStyle=S('--c2');x.fill();x.lineWidth=3;x.strokeStyle=S('--ink');x.stroke()}}
+
+function find(){const a=city.L[$('#selA').value],b=city.L[$('#selB').value];
+ if(a==b){$('#why').textContent='출발지와 목적지가 같습니다. 다른 장소를 선택하세요.';return}
+ if(sim){clearTimeout(sim.timer);sim=null}city.E.forEach(e=>e.con=false);const ws=wsets();R=ws.map(w=>astar(a,b,w));render()}
+function render(){const st=R.map(stats);
+ $('#cmp').innerHTML=R.map((r,i)=>`<tr class="${i==sel?'sel':''}"><th scope="row">${LBL[i]}</th><td>${fmt(st[i].t)}</td><td>${st[i].st}</td><td>${st[i].ns}</td><td>${st[i].rk.toFixed(1)}</td></tr>`).join('');
+ $('#pick').innerHTML=LBL.map((l,i)=>`<button aria-pressed="${i==sel}" data-i="${i}">${l} 경로 선택</button>`).join('');
+ $('#pick').querySelectorAll('button').forEach(b=>b.onclick=()=>{sel=+b.dataset.i;render()});
+ const s=st[sel],b=st[0];
+ $('#why').textContent=sel==0?'가장 빠른 경로입니다. 위험 요소는 고려하지 않았습니다.':`최단 경로 대비 계단 ${Math.max(0,b.st-s.st)}곳, 음향 없는 횡단보도 ${Math.max(0,b.ns-s.ns)}곳을 줄였고, 시간은 ${s.t-b.t>=0?'+':''}${Math.round(s.t-b.t)}초 차이입니다.`;
+ $('#steps').innerHTML=R[sel].es.map((e,i)=>`<li>${instr(R[sel],i)}</li>`).join('');draw()}
+
+function bar(){$('#wts').innerHTML=KEYS.map((k,i)=>`<div class="w"><span>${k}</span><span class="bar"><b style="width:${Math.min(100,prof[i]/6*100)}%"></b></span><span>${prof[i].toFixed(1)}</span></div>`).join('')}
+
+function later(){if(!sim)return;clearTimeout(sim.timer);const t0=Date.now(),w=()=>{if(!sim||sim.paused)return;const sp=voice&&window.speechSynthesis&&speechSynthesis.speaking;if(Date.now()-t0>1500&&(!sp||Date.now()-t0>12000))step();else sim.timer=setTimeout(w,250)};sim.timer=setTimeout(w,250)}
+/* 행동 트리: 긴급 대응 → 횡단보도 → 이탈 복구 → 기본 안내 */
+function step(){if(!sim||sim.paused)return;const r=sim.r;
+ if(sim.i>=r.es.length){arrive();return}
+ const e=r.es[sim.i];
+ if(!e.con&&sim.ev<2&&Math.random()<.12){e.con=true;sim.ev++;say('전방에 공사가 감지되었습니다. 우회 경로를 찾습니다.','warn');say('행동 트리 · 긴급 대응: 공사 감지 → 비용 상향 → 재탐색','bt');
+  const nr=astar(r.p[sim.i],sim.t,wsets()[sim.k]);nr.pre=sim.i?r.p[sim.i-1]:r.pre;sim.r=nr;sim.i=0;draw();later();return}
+ const t=instr(r,sim.i);
+ if(e.cr&&!e.au){navigator.vibrate&&navigator.vibrate([200,100,200]);say(t,'warn');say('행동 트리 · 횡단보도 처리: 음향신호 없음 → 주의 안내와 진동','bt')}
+ else{say(t);if(e.cr)say('행동 트리 · 횡단보도 처리: 음향신호 확인 → 신호 대기 안내','bt')}
+ if(sim.i>0){const q=r.p[sim.i-1],a=r.p[sim.i],b=r.p[sim.i+1],f=[(a%N)-(q%N),(a/N|0)-(q/N|0)],d=[(b%N)-(a%N),(b/N|0)-(a/N|0)],c=f[0]*d[1]-f[1]*d[0];if(c)ping(c>0?1:-1)}
+ sim.last=t;sim.trail.push(e);sim.i++;draw();later()}
+function start(){if(!R.length)find();if(!R.length)return;clearTimeout(sim&&sim.timer);window.speechSynthesis&&speechSynthesis.cancel();city.E.forEach(e=>e.con=false);$('#bPause').textContent='일시정지 (P)';
+ $('#log').innerHTML='';$('#fb').innerHTML='';
+ sim={r:R[sel],i:0,k:sel,t:R[sel].p[R[sel].p.length-1],ev:0,trail:[],paused:false};
+ say('안내를 시작합니다. '+LBL[sel]+' 경로입니다.');later()}
+function arrive(){say('목적지에 도착했습니다. 아래에서 구간 피드백을 남길 수 있습니다.');
+ const seen=new Set(),L=sim.trail.filter(e=>risk(e).some(x=>x>0)&&!seen.has(e)&&seen.add(e)).slice(0,5);
+ $('#fb').innerHTML=L.length?'<h2 style="margin-top:14px">구간 피드백</h2>':'';
+ L.forEach(e=>{const rk=risk(e),d=document.createElement('div'),why=KEYS.filter((k,i)=>rk[i]>0).join(', ');d.className='fb';
+  d.innerHTML=`<span>${why}</span><span><button data-v="bad">불안했음</button> <button data-v="ok">괜찮았음</button></span>`;
+  d.querySelectorAll('button').forEach(b=>b.onclick=()=>{rk.forEach((x,i)=>{prof[i]=Math.min(6,Math.max(.2,prof[i]*(b.dataset.v=='bad'?1+.25*x:1-.1*x)))});save();bar();d.textContent='반영되었습니다.';find()});$('#fb').append(d)});
+  clearTimeout(sim.timer);sim=null;draw()}
+
+function parse(){const t=$('#nl').value,hits=NAMES.map(n=>[t.indexOf(n),n]).filter(h=>h[0]>=0).sort((a,b)=>a[0]-b[0]);
+ let msg='';if(hits.length>=2){$('#selA').value=hits[0][1];$('#selB').value=hits[1][1]}
+ else if(hits.length==1){$('#selB').value=hits[0][1]}else msg='장소 이름을 찾지 못했습니다. 시청역, 약국 같은 이름을 넣어 주세요. ';
+ if(/계단/.test(t)&&/피|싫|없/.test(t)){opts.stairs=3;msg+='계단 회피를 강화했습니다.'}else opts.stairs=1;
+ $('#parseOut').textContent=msg||'문장을 해석했습니다.';find()}
+
+function evalRun(){const acc=[0,1,2].map(()=>({t:0,st:0,ns:0,rk:0})),n=30,keep=city;
+ for(let i=0;i<n;i++){city=gen(1000+i);const r=prng(77+i),a=r()*64|0;let b=r()*64|0;if(b==a)b=(a+27)%64;
+  [W0.map(()=>0),W0,W0].forEach((w,k)=>{const s=stats(astar(a,b,w));for(const key in s)acc[k][key]+=s[key]/n})}
+ city=keep;$('#evalOut').innerHTML='<table><thead><tr><th scope="col">경로</th><th scope="col">평균 시간</th><th scope="col">계단</th><th scope="col">음향 없는 횡단</th><th scope="col">위험</th></tr></thead><tbody>'+
+ ['최단','안전'].map((l,k)=>`<tr><th scope="row">${l}</th><td>${fmt(acc[k].t)}</td><td>${acc[k].st.toFixed(2)}</td><td>${acc[k].ns.toFixed(2)}</td><td>${acc[k].rk.toFixed(1)}</td></tr>`).join('')+'</tbody></table><p class="hint">맞춤 경로는 사용자 피드백에 따라 달라져 평가에서 제외했습니다.</p>'}
+
+function newCity(){seed=+$('#seed').value||7;city=gen(seed);R=[];sim=null;
+ const o=NAMES.map(n=>`<option>${n}</option>`).join('');$('#selA').innerHTML=o;$('#selB').innerHTML=o;$('#selB').selectedIndex=1;
+ $('#cmp').innerHTML='<tr><td colspan="5" class="hint">경로 찾기를 누르세요.</td></tr>';$('#steps').innerHTML='';draw()}
+
+$('#bCity').onclick=newCity;$('#bGo').onclick=find;$('#bParse').onclick=parse;$('#bStart').onclick=start;$('#bEval').onclick=evalRun;
+$('#selA').onchange=$('#selB').onchange=()=>draw();
+$('#bPause').onclick=()=>{if(!sim)return;sim.paused=!sim.paused;$('#bPause').textContent=sim.paused?'다시 진행 (P)':'일시정지 (P)';clearTimeout(sim.timer);if(!sim.paused)step();else window.speechSynthesis&&speechSynthesis.cancel()};
+$('#bRep').onclick=()=>{if(sim&&sim.last)say(sim.last)};
+$('#bReset').onclick=()=>{prof=W0.slice();save();bar();if(R.length)find()};
+$('#nl').onkeydown=e=>{if(e.key=='Enter')parse()};
+const tog=(id,fn)=>$(id).onclick=()=>{const v=$(id).getAttribute('aria-pressed')!='true';$(id).setAttribute('aria-pressed',v);fn(v)};
+tog('#tHc',v=>{document.documentElement.dataset.hc=v?1:0;draw()});tog('#tBig',v=>document.documentElement.dataset.big=v?1:0);tog('#tVoice',v=>{voice=v;if(!v&&window.speechSynthesis)speechSynthesis.cancel()});
+document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;
+ const k=e.key.toLowerCase();if(k=='s')start();else if(k=='p')$('#bPause').click();else if(k=='r')$('#bRep').click()});
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+newCity();bar();
+</script>
+</body>
+</html>
