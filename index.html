@@ -52,6 +52,8 @@ ol.steps{margin:10px 0 0;padding-left:22px;font-size:.9rem;max-height:200px;over
 .fb{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0;font-size:.88rem}
 .fb button{min-height:36px;padding:4px 10px}
 .hint{font-size:.82rem;color:var(--mut)}
+.vbox{margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:10px;background:var(--bg)}
+.vbox ul{margin:6px 0 0;padding-left:20px}
 @media(prefers-reduced-motion:no-preference){.bar b{transition:width .4s}}
 </style>
 </head>
@@ -117,6 +119,7 @@ ol.steps{margin:10px 0 0;padding-left:22px;font-size:.9rem;max-height:200px;over
    <button id="bPause">일시정지 (P)</button>
    <button id="bRep">다시 듣기 (R)</button>
   </div>
+  <div class="vbox"><button id="bMic" aria-pressed="false">🎙 음성 보고 켜기</button> <button id="bV" class="p">음성 보고로 안내 시작</button><p id="heard" class="hint" aria-live="polite">마이크가 꺼져 있습니다. 음성 인식이 안 되는 환경에서는 위의 문장 입력칸에 명령을 입력해도 됩니다.</p><details><summary>말할 수 있는 문장</summary><ul class="hint"><li>“직진했어”, “좌회전했어”, “우회전했어”, “뒤로 돌아갔어”: 이동 보고</li><li>“멈췄어”, “걷는 중이야”: 상태 보고</li><li>“앞에 공사 있어”, “장애물 있어”: 위험 신고</li><li>“다시 말해줘”: 안내 반복, “도와줘”: 긴급</li></ul></details></div>
   <div id="log" aria-live="polite" aria-label="안내 기록"></div>
  </section>
 
@@ -174,7 +177,7 @@ function instr(r,i){const e=r.es[i],pre=dirText(r.p,i,r.pre),b=[];
  if(!e.tp)b.push('점자블록이 끊깁니다');return b.join('. ')+'.'}
 
 function say(t,c){const d=document.createElement('div');d.className='msg '+(c||'');d.textContent=t;$('#log').append(d);$('#log').scrollTop=1e9;
- if(c!='bt'&&voice&&window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';speechSynthesis.speak(u)}}
+ if(c!='bt'&&voice&&window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';muteUntil=Infinity;u.onend=u.onerror=()=>{muteUntil=Date.now()+1200};speechSynthesis.speak(u)}}
 let AC;function ping(pan){try{const C=AC||(AC=new(window.AudioContext||window.webkitAudioContext)()),o=C.createOscillator(),g=C.createGain(),p=C.createStereoPanner();
  o.frequency.value=660;g.gain.value=.08;p.pan.value=pan;o.connect(g);g.connect(p);p.connect(C.destination);o.start();o.stop(C.currentTime+.15)}catch(e){}}
 
@@ -205,9 +208,9 @@ function render(){const st=R.map(stats);
 
 function bar(){$('#wts').innerHTML=KEYS.map((k,i)=>`<div class="w"><span>${k}</span><span class="bar"><b style="width:${Math.min(100,prof[i]/6*100)}%"></b></span><span>${prof[i].toFixed(1)}</span></div>`).join('')}
 
-function later(){if(!sim)return;clearTimeout(sim.timer);const t0=Date.now(),w=()=>{if(!sim||sim.paused)return;const sp=voice&&window.speechSynthesis&&speechSynthesis.speaking;if(Date.now()-t0>1500&&(!sp||Date.now()-t0>12000))step();else sim.timer=setTimeout(w,250)};sim.timer=setTimeout(w,250)}
+function later(){if(!sim||sim.manual)return;clearTimeout(sim.timer);const t0=Date.now(),w=()=>{if(!sim||sim.paused)return;const sp=voice&&window.speechSynthesis&&speechSynthesis.speaking;if(Date.now()-t0>1500&&(!sp||Date.now()-t0>12000))step();else sim.timer=setTimeout(w,250)};sim.timer=setTimeout(w,250)}
 /* 행동 트리: 긴급 대응 → 횡단보도 → 이탈 복구 → 기본 안내 */
-function step(){if(!sim||sim.paused)return;const r=sim.r;
+function step(){if(!sim||sim.paused||sim.manual)return;const r=sim.r;
  if(sim.i>=r.es.length){arrive();return}
  const e=r.es[sim.i];
  if(!e.con&&sim.ev<2&&Math.random()<.12){e.con=true;sim.ev++;say('전방에 공사가 감지되었습니다. 우회 경로를 찾습니다.','warn');say('행동 트리 · 긴급 대응: 공사 감지 → 비용 상향 → 재탐색','bt');
@@ -229,7 +232,7 @@ function arrive(){say('목적지에 도착했습니다. 아래에서 구간 피�
   d.querySelectorAll('button').forEach(b=>b.onclick=()=>{rk.forEach((x,i)=>{prof[i]=Math.min(6,Math.max(.2,prof[i]*(b.dataset.v=='bad'?1+.25*x:1-.1*x)))});save();bar();d.textContent='반영되었습니다.';find()});$('#fb').append(d)});
   clearTimeout(sim.timer);sim=null;draw()}
 
-function parse(){const t=$('#nl').value,hits=NAMES.map(n=>[t.indexOf(n),n]).filter(h=>h[0]>=0).sort((a,b)=>a[0]-b[0]);
+function parse(){if(sim&&sim.manual){heard($('#nl').value);return}const t=$('#nl').value,hits=NAMES.map(n=>[t.indexOf(n),n]).filter(h=>h[0]>=0).sort((a,b)=>a[0]-b[0]);
  let msg='';if(hits.length>=2){$('#selA').value=hits[0][1];$('#selB').value=hits[1][1]}
  else if(hits.length==1){$('#selB').value=hits[0][1]}else msg='장소 이름을 찾지 못했습니다. 시청역, 약국 같은 이름을 넣어 주세요. ';
  if(/계단/.test(t)&&/피|싫|없/.test(t)){opts.stairs=3;msg+='계단 회피를 강화했습니다.'}else opts.stairs=1;
@@ -247,7 +250,7 @@ function newCity(){seed=+$('#seed').value||7;city=gen(seed);R=[];sim=null;
 
 $('#bCity').onclick=newCity;$('#bGo').onclick=find;$('#bParse').onclick=parse;$('#bStart').onclick=start;$('#bEval').onclick=evalRun;
 $('#selA').onchange=$('#selB').onchange=()=>draw();
-$('#bPause').onclick=()=>{if(!sim)return;sim.paused=!sim.paused;$('#bPause').textContent=sim.paused?'다시 진행 (P)':'일시정지 (P)';clearTimeout(sim.timer);if(!sim.paused)step();else window.speechSynthesis&&speechSynthesis.cancel()};
+$('#bPause').onclick=()=>{if(!sim||sim.manual)return;sim.paused=!sim.paused;$('#bPause').textContent=sim.paused?'다시 진행 (P)':'일시정지 (P)';clearTimeout(sim.timer);if(!sim.paused)step();else window.speechSynthesis&&speechSynthesis.cancel()};
 $('#bRep').onclick=()=>{if(sim&&sim.last)say(sim.last)};
 $('#bReset').onclick=()=>{prof=W0.slice();save();bar();if(R.length)find()};
 $('#nl').onkeydown=e=>{if(e.key=='Enter')parse()};
@@ -256,6 +259,59 @@ tog('#tHc',v=>{document.documentElement.dataset.hc=v?1:0;draw()});tog('#tBig',v=
 document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;
  const k=e.key.toLowerCase();if(k=='s')start();else if(k=='p')$('#bPause').click();else if(k=='r')$('#bRep').click()});
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+/* 음성 보고 모드: 사용자가 말한 방향·상태를 경로와 대조해 이탈과 위험을 알림 */
+let muteUntil=0,micOn=false,rec=null;
+const DN={S:'직진',L:'좌회전',R:'우회전',B:'뒤로 이동'},vecOf=(a,b)=>[(b%N)-(a%N),(b/N|0)-(a/N|0)];
+const dirKey=(f,d)=>{const c=f[0]*d[1]-f[1]*d[0],dot=f[0]*d[0]+f[1]*d[1];return dot<0?'B':c>0?'R':c<0?'L':'S'};
+function cue(){const r=sim.r,n=r.es[sim.i+1],h=[];let t='다음은 '+instr(r,sim.i);
+ if(n){if(n.st)h.push('계단');if(n.cr&&!n.au)h.push('음향신호 없는 횡단보도');if(n.con)h.push('공사');if(n.crowd>.8)h.push('혼잡 구간');if(h.length)t+=' 그다음 구간에는 '+h.join(', ')+'이 있으니 대비하세요.'}
+ sim.last=t;return t}
+function reroute(from,pre){const nr=astar(from,sim.t,wsets()[sim.k]);nr.pre=pre;sim.r=nr;sim.i=0;if(!nr.es.length){arrive();return false}return true}
+function vstart(){if(!R.length)find();if(!R.length)return;if(!micOn)mic(true);
+ window.speechSynthesis&&speechSynthesis.cancel();city.E.forEach(e=>e.con=false);
+ const r=R[sel];sim={r,i:0,k:sel,t:r.p[r.p.length-1],ev:0,trail:[],manual:true,walking:true,stopped:false,head:vecOf(r.p[0],r.p[1]),lastT:Date.now()};
+ $('#log').innerHTML='';$('#fb').innerHTML='';
+ say('음성 보고 모드를 시작합니다. 한 구간씩 이동한 뒤 직진했어, 좌회전했어처럼 말해 주세요. 멈추면 멈췄어라고 말해 주세요. '+cue());draw()}
+function move(key){const r=sim.r,cur=r.p[sim.i],f=sim.head,d=key=='S'?f:key=='B'?[-f[0],-f[1]]:key=='R'?[-f[1],f[0]]:[f[1],-f[0]],x=(cur%N)+d[0],y=(cur/N|0)+d[1];
+ if(x<0||y<0||x>=N||y>=N){say('그쪽은 도시의 끝입니다. 다른 방향을 선택하세요.','warn');return}
+ const nx=y*N+x,e=city.A[cur].find(q=>q.a==nx||q.b==nx),ek=dirKey(f,vecOf(cur,r.p[sim.i+1]));
+ sim.head=d;sim.walking=true;sim.stopped=false;sim.trail.push(e);
+ if(nx==r.p[sim.i+1]){sim.i++;if(sim.i>=r.es.length){arrive();return}
+  const n=r.es[sim.i];
+  if(!n.con&&sim.ev<2&&Math.random()<.1){n.con=true;sim.ev++;say('전방에 공사가 감지되었습니다. 우회 경로를 찾습니다.','warn');say('행동 트리 · 긴급 대응: 공사 감지 → 비용 상향 → 재탐색','bt');if(!reroute(nx,cur))return}
+  say(cue())}
+ else{const bad=[];if(e.st)bad.push('계단');if(e.cr&&!e.au)bad.push('음향신호 없는 횡단보도');
+  say('경로 이탈입니다. '+DN[ek]+'해야 했습니다.'+(bad.length?' 방금 지난 구간에는 '+bad.join(', ')+'이 있었습니다.':'')+' 현재 위치에서 다시 탐색합니다.','warn');
+  say('행동 트리 · 이탈 복구: 이탈 감지 → 현재 위치 재탐색','bt');if(!reroute(nx,cur))return;say(cue())}
+ sim.lastT=Date.now();draw()}
+function sos(){if(sim){sim.stopped=true;sim.walking=false;sim.lastT=Date.now();if(!sim.manual){clearTimeout(sim.timer);sim.paused=true}}
+ say('긴급 상황으로 확인했습니다. 안내를 멈추고 보호자 알림을 시뮬레이션합니다. 안전한 곳에서 움직이지 말고 기다려 주세요.','warn');
+ say('행동 트리 · 긴급 대응: 긴급어 감지 → 안내 정지 → 보호자 알림(시뮬레이션)','bt');navigator.vibrate&&navigator.vibrate([400,150,400,150,400]);ping(0)}
+function heard(raw){const t=raw.replace(/\s/g,'');$('#heard').textContent='인식: “'+raw.trim()+'”';
+ if(/도와|살려|비상|위험해/.test(t)){sos();return}
+ if(!sim){if(/시작|출발/.test(t))vstart();else{$('#nl').value=raw;parse()}return}
+ sim.lastT=Date.now();
+ if(!sim.manual){if(/멈|정지|잠깐/.test(t)&&!sim.paused||/계속|재개/.test(t)&&sim.paused)$('#bPause').click();return}
+ if(/멈|섰|정지|서있/.test(t)){sim.stopped=true;sim.walking=false;const e=sim.r.es[sim.i];
+  say(e.cr&&!e.au?'음향신호가 없는 횡단보도 앞입니다. 차량 소리를 확인한 뒤 건너세요.':e.cr?'음향신호 횡단보도 앞입니다. 신호음이 바뀌면 이동하세요.':'정지를 확인했습니다. 준비되면 걷는 중이야라고 말해 주세요.',e.cr&&!e.au?'warn':'');return}
+ if(/걷|가고|이동중/.test(t)){sim.stopped=false;sim.walking=true;say('이동 중으로 확인했습니다. '+cue());return}
+ if(/다시|반복/.test(t)){say(sim.last||'반복할 안내가 없습니다.');return}
+ if(/종료|그만/.test(t)){say('안내를 종료합니다.');sim=null;draw();return}
+ if(/공사|장애물|막혔|막혀/.test(t)){const r=sim.r;r.es[sim.i].con=true;say('위험 신고를 접수했습니다. 해당 구간을 피해 다시 탐색합니다.','warn');say('행동 트리 · 긴급 대응: 사용자 신고 → 비용 상향 → 재탐색','bt');
+  if(reroute(r.p[sim.i],sim.i?r.p[sim.i-1]:r.pre)){say(cue());draw()}return}
+ const k=/뒤로|돌아/.test(t)?'B':/좌|왼/.test(t)?'L':/우회전|오른/.test(t)?'R':/직진|앞으로|계속|곧장/.test(t)?'S':null;
+ if(k)move(k);else say('이해하지 못했습니다. 직진했어, 좌회전했어처럼 말해 주세요.')}
+function mic(on){const SR=window.SpeechRecognition||window.webkitSpeechRecognition,h=$('#heard');
+ if(on&&!SR){h.textContent='이 브라우저는 음성 인식을 지원하지 않습니다. Chrome이나 Edge를 쓰거나 문장 입력칸에 명령을 입력하세요.';return false}
+ micOn=on;$('#bMic').setAttribute('aria-pressed',on);$('#bMic').textContent=on?'🎙 음성 보고 끄기':'🎙 음성 보고 켜기';
+ if(!on){rec&&rec.stop();h.textContent='마이크가 꺼져 있습니다.';return true}
+ rec=new SR();rec.lang='ko-KR';rec.continuous=true;
+ rec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal){if(window.speechSynthesis&&speechSynthesis.speaking||Date.now()<muteUntil)continue;heard(e.results[i][0].transcript)}};
+ rec.onerror=e=>{const m='음성 인식 오류: '+e.error+(e.error=='not-allowed'?' (마이크 권한을 허용하세요)':'');if(e.error=='not-allowed'||e.error=='service-not-allowed')mic(false);h.textContent=m};
+ rec.onend=()=>{if(micOn)try{rec.start()}catch(_){}};
+ try{rec.start();h.textContent='듣는 중입니다.'}catch(_){}return true}
+setInterval(()=>{if(!sim||!sim.manual)return;const s=(Date.now()-sim.lastT)/1000;if(s>(sim.stopped?45:25)){sim.lastT=Date.now();say(sim.stopped?'오래 멈춰 있습니다. 도움이 필요하면 도와줘라고 말해 주세요.':'이동 보고가 없습니다. 괜찮으신가요? 진행 상황을 말해 주세요.','warn')}},1000);
+$('#bMic').onclick=()=>mic(!micOn);$('#bV').onclick=vstart;
 newCity();bar();
 </script>
 </body>
